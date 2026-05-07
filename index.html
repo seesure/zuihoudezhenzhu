@@ -428,13 +428,13 @@
       var overlay = document.getElementById('overlay'); var title = document.getElementById('overlay-title'); var sub = document.getElementById('overlay-sub');
       if (!playerWins) {
         overlay.style.backgroundColor = 'rgba(0,0,0,0.85)'; title.textContent = '你输了'; title.style.color = '#ff4422'; title.style.textShadow = '0 0 30px #ff2200';
-        sub.textContent = '最后一颗珍珠在你指尖碎裂……\n深渊之眼发出低沉的笑声……你将坠入无尽的深渊……';
+        sub.textContent = '最后一颗珍珠在你指尖碎裂……\n你将坠入无尽的深渊……';
         new Audio('bg8.mp3').play();
         gsap.to(document.body, { duration: 0.1, x: -8, yoyo: true, repeat: 5, onComplete: function() { gsap.set(document.body, { x: 0, y: 0 }); } });
         explodeLastPearl('#ff4422', '#ff8800');
       } else {
         title.textContent = '你赢了！'; title.style.color = '#ffdd44'; title.style.textShadow = '0 0 30px #ffaa00, 0 0 60px #ff6600';
-        sub.textContent = '深渊之眼悄然隐没……\n祭坛归于沉寂……\n唯有你，站在光明之中……';
+        sub.textContent = '深渊之眼悄然隐没……\n唯有你，站在光明之中……';
         var gameArea = document.getElementById('game-area'); gsap.to(gameArea, { opacity: 0, duration: 1.5, ease: 'power2.inOut' });
         new Audio('bg7.mp3').play();
         gsap.to(document.body, { duration: 0.15, scale: 1.02, yoyo: true, repeat: 4, ease: 'sine.inOut' }); goldenGlow();
