@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>最后的珍珠</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #050510; color: #c8d6f0;
+      font-family: 'SimSun', 'Microsoft YaHei', serif;
+      overflow: hidden; width: 100vw; height: 100vh;
+      display: flex; justify-content: center; align-items: flex-start;
+    }
+    #app-container {
+      position: relative; width: 100vw; height: 100vh;
+      max-width: calc(100vh * 3 / 2); overflow: hidden; background: #050510;
+    }
+    @media (max-aspect-ratio: 3/2) {
+      #app-container { width: 100vw; height: calc(100vw * 2 / 3); max-width: none; }
+    }
+    .title-text { font-size: clamp(1.4rem, 5vw, 2.2rem); letter-spacing: 6px; color: #a8c8ff; text-shadow: 0 0 20px #4488ff, 0 0 40px #2244aa; }
+    #particles-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    .pearl-row { display: flex; justify-content: center; gap: clamp(6px, 1.5vw, 14px); margin: clamp(3px, 0.6vh, 6px) 0; }
+    .pearl-slot {
+      width: clamp(32px, 6.5vw, 44px); height: clamp(32px, 6.5vw, 44px);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; flex-shrink: 0;
+    }
+    .pearl {
+      width: clamp(24px, 5vw, 34px); height: clamp(24px, 5vw, 34px); border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #e0f4ff, #88ccff 40%, #4488dd 70%, #1a4488 100%);
+      box-shadow: 0 0 10px #88ccff, 0 0 20px #4488ff, inset 0 -3px 6px rgba(0,0,0,0.4);
+      transition: box-shadow 0.2s, transform 0.2s; position: relative;
+    }
+    .pearl::after {
+      content: ''; position: absolute; top: 22%; left: 26%; width: 28%; height: 18%;
+      background: rgba(255,255,255,0.7); border-radius: 50%; transform: rotate(-30deg);
+    }
+    .pearl-slot:hover .pearl {
+      transform: translateY(-5px);
+      box-shadow: 0 0 18px #88ddff, 0 0 36px #4499ff, 0 6px 14px rgba(68,136,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.4);
+    }
+    .pearl-slot.disabled { pointer-events: none; cursor: default; }
+    .btn {
+      padding: clamp(6px, 1.5vw, 10px) clamp(18px, 4.5vw, 28px);
+      background: linear-gradient(135deg, #1a3a88, #2a5ab8); color: #c8d6f0;
+      border: 1px solid #4488ff; border-radius: 6px;
+      font-size: clamp(0.85rem, 2.2vw, 1.05rem); cursor: pointer;
+      letter-spacing: 3px; box-shadow: 0 0 10px #2244aa; transition: all 0.3s;
+    }
+    .btn:hover:not(:disabled) { background: linear-gradient(135deg, #2a5ab8, #3a7ad8); box-shadow: 0 0 18px #4488ff; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 200; background: rgba(0,0,0,0.78); align-items: center; justify-content: center; flex-direction: column; }
+    #overlay.show { display: flex; }
+    #overlay-title { font-size: clamp(2rem, 7vw, 3rem); letter-spacing: 8px; margin-bottom: 12px; }
+    #overlay-sub { font-size: clamp(0.95rem, 2.5vw, 1.15rem); color: #8899bb; letter-spacing: 2px; text-align: center; max-width: 80%; line-height: 1.8; }
+    #ai-speech { min-height: 1.6em; font-size: clamp(0.85rem, 2.2vw, 1.05rem); color: #88aadd; letter-spacing: 2px; text-align: center; margin: clamp(4px, 1vh, 8px) 0; font-style: italic; }
+    #turn-indicator {
+      margin-top: clamp(8px, 2vh, 14px); font-size: clamp(0.85rem, 2.2vw, 1rem); color: #6688cc;
+      letter-spacing: 3px; padding: clamp(4px, 1vh, 6px) clamp(16px, 4vw, 24px);
+      border: 1px solid transparent; border-radius: 6px; cursor: default; transition: all 0.3s;
+    }
+    #turn-indicator.clickable {
+      color: #aaccff; border-color: #4488ff;
+      background: linear-gradient(135deg, #1a3a88, #2a5ab8);
+      cursor: pointer; box-shadow: 0 0 10px #2244aa;
+    }
+    #turn-indicator.clickable:hover { background: linear-gradient(135deg, #2a5ab8, #3a7ad8); box-shadow: 0 0 18px #4488ff; }
+    .screen-shake { animation: shake 0.5s ease-in-out; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); } 10% { transform: translateX(-12px) rotate(-1deg); }
+      20% { transform: translateX(12px) rotate(1deg); } 30% { transform: translateX(-10px) rotate(-0.5deg); }
+      40% { transform: translateX(10px) rotate(0.5deg); } 50% { transform: translateX(-8px); }
+      60% { transform: translateX(8px); } 70% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); } 90% { transform: translateX(-2px); }
+    }
+    #intro-screen {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 10; background: #050510;
+    }
+    #intro-visual { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 40%; opacity: 0; transition: opacity 0.8s ease; }
+    #intro-overlay-dark { position: absolute; inset: 0; background: rgba(5,5,16,0.45); pointer-events: none; z-index: 1; }
+    #typewriter {
+      position: relative; z-index: 5; font-size: clamp(0.95rem, 2.5vw, 1.15rem); line-height: 2;
+      color: #8ab4e8; letter-spacing: 2px; text-align: center; max-width: 88%;
+      min-height: 8em; opacity: 0; padding: 0 clamp(12px, 3vw, 20px);
+    }
+    #start-btns { position: relative; z-index: 5; margin-top: clamp(20px, 5vh, 36px); display: none; gap: clamp(14px, 4vw, 20px); }
+  </style>
+</head>
+<body>
+  <canvas id="particles-canvas"></canvas>
+  <div id="app-container">
+    <!-- ========== 开场 intro ========== -->
+    <div id="intro-screen">
+      <video id="intro-video" playsinline muted src="intro.mp4" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;"></video>
+      <audio id="bgm" loop src="bg.mp3"></audio>
+      <audio id="bg2" src="bg2.mp3"></audio>
+      <img id="intro-bg-img" src="bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%;opacity:0;z-index:0;" alt="">
+      <div id="intro-overlay-dark"></div>
+      <div id="typewriter"></div>
+      <div id="play-video-btn" style="position:relative;z-index:5;">
+        <button class="btn" onclick="playIntroVideo()" style="font-size:clamp(1rem,2.5vw,1.2rem);padding:clamp(10px,2.5vw,14px) clamp(28px,6vw,40px);letter-spacing:4px;">开始游戏</button>
+      </div>
+      <div id="start-btns">
+        <button class="btn" onclick="beginGame(true)">我先手</button>
+        <button class="btn" onclick="beginGame(false)">AI先手</button>
+      </div>
+    </div>
+
+    <!-- ========== 游戏主区域 ========== -->
+    <div id="game-area" style="display:none;flex-direction:column;align-items:center;flex:1;width:100%;height:100%;position:relative;overflow:hidden;background: url('bg.png') center 38% / cover no-repeat, linear-gradient(180deg,#0a0a1a 0%,#1a1a3a 50%,#0a0a1a 100%) !important;">
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:0;pointer-events:none;"></div>
+      <div style="height:clamp(80px,20vh,160px);width:100%;"></div>
+      <div style="color:#aac8ff;font-size:clamp(1.0rem,4.0vw,1.8rem);letter-spacing:10px;margin-bottom:clamp(8px,2vh,14px);text-shadow:0 0 20px #4488ff,0 0 40px #2244aa;font-weight:bold;position:relative;z-index:1;">— 最后的珍珠 —</div>
+      <div id="ai-speech"></div>
+      <div id="pearl-board"></div>
+      <div id="turn-indicator"></div>
+    </div>
+  </div>
+
+  <!-- 胜负弹窗 -->
+  <div id="overlay">
+    <div id="overlay-title"></div>
+    <div id="overlay-sub"></div>
+    <button class="btn" style="margin-top:clamp(16px,4vh,28px);" onclick="restartGame()">再来一局</button>
+  </div>
+
+  <script>
+    // =====================================================
+    // 粒子背景
+    // =====================================================
+    (function initParticles() {
+      var pc = document.getElementById('particles-canvas');
+      var pctx = pc.getContext('2d');
+      var particles = [];
+      function resizePC() { pc.width = window.innerWidth; pc.height = window.innerHeight; }
+      resizePC();
+      window.addEventListener('resize', resizePC);
+      function spawnParticle() {
+        particles.push({ x: Math.random() * pc.width, y: pc.height + 5, vx: (Math.random() - 0.5) * 0.6, vy: -(0.4 + Math.random() * 0.8), r: 0.8 + Math.random() * 2.2, a: 0.15 + Math.random() * 0.45, hue: 200 + Math.random() * 40 });
+      }
+      function animParticles() {
+        pctx.clearRect(0, 0, pc.width, pc.height);
+        if (Math.random() < 0.66) spawnParticle();
+        particles = particles.filter(function(p) { return p.y > -10 && p.a > 0; });
+        particles.forEach(function(p) {
+          pctx.beginPath(); pctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          pctx.fillStyle = 'hsla(' + p.hue + ',80%,70%,' + p.a + ')'; pctx.fill();
+          p.x += p.vx; p.y += p.vy; p.a -= 0.0015;
+        });
+        requestAnimationFrame(animParticles);
+      }
+      animParticles();
+    })();
+
+    // =====================================================
+    // 游戏状态
+    // =====================================================
+    var TOTAL_PEARLS = [3, 4, 5, 6];
+    var state = { rows: [3, 4, 5, 6], playerTurn: true, gameOver: false, animating: false, selectedRow: -1 };
+    var INTRO_TEXT = '你带着探险队进入一座古老的神庙，看见祭坛上摆放着十八颗幽蓝的珍珠。\n为了你的队员不被深渊吞噬，你与深渊之眼将进行一场智慧的较量……\n规则很简单：每次只能从同一排取走珍珠，至少取一颗。\n取得最后一颗珍珠的人——输。';
+    var AI_LINES = {
+      think: ['深渊在低语……', '我在凝视……', '珍珠的命运……'],
+      good: ['不错……', '这一步有水平……', '有意思……'],
+      bad: ['就这？', '太草率……']
+    };
+
+    // ==========================================
+    // ⏱️ 打字机速度调节旋钮（单位：毫秒）
+    // 数字越小，打字越快；数字越大，打字越慢
+    // 推荐范围：80（极快） ~ 400（极慢）
+    // ==========================================
+    const TYPING_SPEED = 150;
+
+    // =====================================================
+    // 打字机效果（修复版 + 速度控制）
+    // =====================================================
+    function typeWriter(text, el, callback) {
+      el.style.opacity = '1';
+      el.innerHTML = '';
+      var lines = text.split('\n');
+      var lineIdx = 0;
+      var charIdx = 0;
+      function typeNext() {
+        if (lineIdx >= lines.length) { if (callback) callback(); return; }
+        var line = lines[lineIdx];
+        if (charIdx < line.length) {
+          var html = '';
+          for (var li = 0; li <= lineIdx; li++) {
+            if (li < lineIdx) { html += lines[li] + '<br>'; }
+            else { html += lines[li].substring(0, charIdx + 1); }
+          }
+          el.innerHTML = html;
+          charIdx++;
+          // 👇【改动点】：应用速度旋钮
+          setTimeout(typeNext, TYPING_SPEED);
+        } else {
+          lineIdx++; charIdx = 0;
+          // 👇【改动点】：应用速度旋钮
+          setTimeout(typeNext, TYPING_SPEED);
+        }
+      }
+      typeNext();
+    }
+
+    // =====================================================
+    // 开场启动 —— 视频与打字机同步播放
+    // =====================================================
+    var videoDone = false;
+    function playIntroVideo() {
+      var playBtn = document.getElementById('play-video-btn');
+      playBtn.style.display = 'none';
+      document.getElementById('start-btns').style.display = 'none';
+      document.getElementById('typewriter').innerHTML = '';
+      document.getElementById('typewriter').style.opacity = '0';
+      var video = document.getElementById('intro-video');
+      var bgImg = document.getElementById('intro-bg-img');
+      videoDone = false; video.currentTime = 0; video.muted = true;
+      var bgm = document.getElementById('bgm');
+      bgm.volume = 1;
+      bgm.play().catch(function(e) { console.log('音乐播放失败:', e); });
+      
+      video.play().then(function() {
+        console.log('视频播放成功（静音）+ 背景音乐');
+        gsap.to(video, { opacity: 1, duration: 1 });
+        // 👇【改动点】：视频一开始播放，立刻触发打字机
+        startTypewriter();
+      }).catch(function(e) {
+        console.log('播放失败:', e);
+        bgImg.style.opacity = '1';
+        startTypewriter();
+      });
+    }
+
+    window.addEventListener('load', function() {
+      document.getElementById('start-btns').style.display = 'none';
+      var video = document.getElementById('intro-video');
+      var bgImg = document.getElementById('intro-bg-img');
+      
+      video.addEventListener('ended', function() {
+        if (videoDone) return;
+        videoDone = true;
+        gsap.to(video, { opacity: 0, duration: 1.0, onComplete: function() {
+          gsap.to(bgImg, { opacity: 1, duration: 3.0 });
+          // 👇【改动点】：删掉了这里的 startTypewriter()，防止文字重复打两遍
+        }});
+        gsap.to(bgm, { volume: 0, duration: 4.0 });
+      });
+      
+      video.addEventListener('error', function() {
+        console.log('视频错误，用背景图');
+        bgImg.style.opacity = '1';
+        startTypewriter();
+      });
+    });
+
+    function startTypewriter() {
+      var twEl = document.getElementById('typewriter');
+      twEl.style.opacity = '0';
+      gsap.to(twEl, { opacity: 1, duration: 0.8, onComplete: function() {
+        typeWriter(INTRO_TEXT, twEl, function() {
+          var btns = document.getElementById('start-btns');
+          btns.style.display = 'flex';
+          gsap.fromTo(btns, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5 });
+        });
+      }});
+    }
+
+    // =====================================================
+    // 开始游戏
+    // =====================================================
+    function beginGame(playerFirst) {
+      document.getElementById('intro-screen').style.display = 'none';
+      var gameArea = document.getElementById('game-area');
+      gameArea.style.display = 'flex'; gameArea.style.opacity = '1';
+      document.getElementById('overlay').classList.remove('show');
+      state.rows = [3, 4, 5, 6]; state.playerTurn = playerFirst;
+      state.gameOver = false; state.animating = false; state.selectedRow = -1;
+      renderPearls();
+      if (playerFirst) { setTurnIndicator('轮到你了'); state.selectedRow = -1; enablePearls(); }
+      else { setTurnIndicator('AI回合...'); disablePearls(); showAISpeech(AI_LINES.think[Math.floor(Math.random() * AI_LINES.think.length)]); setTimeout(aiMove, 1000); }
+    }
+
+    function restartGame() {
+      var ov = document.getElementById('overlay');
+      ov.style.backgroundColor = ''; ov.classList.remove('show');
+      var bg2 = document.getElementById('bg2');
+      if (bg2 && !bg2.paused) { gsap.to(bg2, { volume: 0, duration: 3, onComplete: function() { bg2.pause(); bg2.currentTime = 0; bg2.volume = 1; }}); }
+      document.getElementById('intro-screen').style.display = 'flex';
+      document.getElementById('game-area').style.display = 'none';
+      var video = document.getElementById('intro-video'); var bgImg = document.getElementById('intro-bg-img'); var twEl = document.getElementById('typewriter');
+      video.pause(); video.currentTime = 0; video.style.opacity = '0'; bgImg.style.opacity = '1'; twEl.innerHTML = ''; twEl.style.opacity = '0';
+      document.getElementById('play-video-btn').style.display = 'none';
+      var btns = document.getElementById('start-btns'); btns.style.display = 'flex';
+      gsap.fromTo(btns, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4 });
+      showAISpeech(''); setTurnIndicator('');
+    }
+
+    // =====================================================
+    // 渲染珍珠板
+    // =====================================================
+    function renderPearls() {
+      var board = document.getElementById('pearl-board'); board.innerHTML = '';
+      for (var r = 0; r < 4; r++) {
+        var rowDiv = document.createElement('div'); rowDiv.className = 'pearl-row';
+        for (var i = 0; i < TOTAL_PEARLS[r]; i++) {
+          var slot = document.createElement('div'); slot.className = 'pearl-slot'; slot.id = 'slot-' + r + '-' + i;
+          if (i < state.rows[r]) { var p = document.createElement('div'); p.className = 'pearl'; slot.appendChild(p); slot.addEventListener('click', makeClick(r, i)); }
+          rowDiv.appendChild(slot);
+        }
+        board.appendChild(rowDiv);
+      }
+    }
+    function makeClick(row, idx) { return function() { onPearlClick(row, idx); }; }
+
+    // =====================================================
+    // 启用/禁用珍珠点击
+    // =====================================================
+    function enablePearls() { document.querySelectorAll('.pearl-slot').forEach(function(s) { s.classList.remove('disabled'); }); }
+    function disablePearls() { document.querySelectorAll('.pearl-slot').forEach(function(s) { s.classList.add('disabled'); }); }
+
+    // =====================================================
+    // UI 辅助
+    // =====================================================
+    function showAISpeech(text) { document.getElementById('ai-speech').textContent = text; }
+    function setTurnIndicator(text) { var el = document.getElementById('turn-indicator'); el.textContent = text; el.classList.remove('clickable'); el.onclick = null; }
+    function makeTurnIndicatorClickable(onClick) {
+      var el = document.getElementById('turn-indicator'); el.textContent = '轮到你了 ▸'; el.classList.add('clickable');
+      el.onclick = function() { if (Math.random() < 0.3) { var sfx = new Audio(['bg3.mp3','bg4.mp3','bg5.mp3'][Math.floor(Math.random() * 3)]); sfx.volume = 0.6; sfx.play(); } onClick(); };
+    }
+
+    // =====================================================
+    // 玩家点击珍珠
+    // =====================================================
+    function onPearlClick(row, idx) {
+      if (!state.playerTurn || state.gameOver || state.animating) return; if (state.rows[row] === 0) return;
+      if (state.selectedRow !== -1 && state.selectedRow !== row) {
+        var slots = document.querySelectorAll('#pearl-board .pearl-row:nth-child(' + (row + 1) + ') .pearl-slot');
+        slots.forEach(function(s) { gsap.fromTo(s, { x: -4 }, { x: 4, duration: 0.06, repeat: 5, yoyo: true, ease: 'power2.inOut', onComplete: function() { gsap.set(s, { x: 0 }); } }); }); return;
+      }
+      state.selectedRow = row; var slotId = 'slot-' + row + '-' + idx; var slot = document.getElementById(slotId); if (!slot) return; var pearl = slot.querySelector('.pearl'); if (!pearl) return;
+      state.animating = true; new Audio('bg6.mp3').play();
+      gsap.to(pearl, { scale: 0, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: function() {
+        pearl.remove(); state.rows[row]--; state.animating = false;
+        var total = state.rows.reduce(function(a, b) { return a + b; }, 0);
+        if (total === 1) { endGame(true); return; } if (total === 0) { endGame(false); return; }
+        makeTurnIndicatorClickable(endPlayerTurn);
+      }});
+    }
+
+    // =====================================================
+    // 玩家结束回合
+    // =====================================================
+    function endPlayerTurn() {
+      if (!state.playerTurn || state.gameOver || state.animating) return;
+      if (state.selectedRow === -1) { var el = document.getElementById('turn-indicator'); gsap.fromTo(el, { scale: 1.1 }, { scale: 1, duration: 0.2, ease: 'back.out(2)' }); return; }
+      state.playerTurn = false; state.selectedRow = -1; setTurnIndicator('AI回合...');
+      showAISpeech(AI_LINES.think[Math.floor(Math.random() * AI_LINES.think.length)]); setTimeout(aiMove, 900);
+    }
+
+    // =====================================================
+    // AI回合
+    // =====================================================
+    function aiMove() {
+      if (state.gameOver) return; var move = getAIMove(state.rows.slice()); if (!move || move.row < 0) return;
+      var row = move.row; var count = move.count || 1; var pearlsToRemove = [];
+      for (var i = TOTAL_PEARLS[row] - 1; i >= 0 && pearlsToRemove.length < count; i--) {
+        var slot = document.getElementById('slot-' + row + '-' + i);
+        if (slot && slot.querySelector('.pearl')) { pearlsToRemove.push({ slot: slot, pearl: slot.querySelector('.pearl'), idx: i }); }
+      }
+      if (pearlsToRemove.length === 0) return; state.animating = true; var removed = 0;
+      function removeNext() {
+        if (removed >= pearlsToRemove.length) {
+          state.animating = false; var total = state.rows.reduce(function(a, b) { return a + b; }, 0);
+          if (total === 0) { endGame(true); return; }
+          state.playerTurn = true; state.selectedRow = -1; setTurnIndicator('AI已选择，轮到你了'); showAISpeech(''); enablePearls(); return;
+        }
+        var item = pearlsToRemove[removed]; new Audio('bg6.mp3').play();
+        gsap.to(item.pearl, { scale: 0, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: function() {
+          item.pearl.remove(); state.rows[row]--; removed++;
+          var total = state.rows.reduce(function(a, b) { return a + b; }, 0);
+          if (total === 1) { state.animating = false; endGame(false); return; } if (total === 0) { state.animating = false; endGame(true); return; }
+          setTimeout(removeNext, 100);
+        }});
+      }
+      removeNext();
+    }
+
+    // =====================================================
+    // AI算法：Misère Nim 最优解（80%最优 + 20%随机）
+    // =====================================================
+    const AI_PERFECT_RATE = 0.9;
+    function getAIMove(rows) {
+      var optimalMove = calculateOptimalMove(rows);
+      if (Math.random() < AI_PERFECT_RATE) { return optimalMove; } else { return getRandomStupidMove(rows); }
+    }
+
+    function calculateOptimalMove(rows) {
+      var nimSum = 0, bigHeaps = 0;
+      for (var i = 0; i < rows.length; i++) { nimSum ^= rows[i]; if (rows[i] > 1) bigHeaps++; }
+      if (bigHeaps >= 2) {
+        if (nimSum === 0) { for (var i = 0; i < rows.length; i++) { if (rows[i] > 0) return { row: i, count: 1 }; } }
+        for (var i = 0; i < rows.length; i++) { if (rows[i] === 0) continue; var target = rows[i] ^ nimSum; if (target < rows[i]) return { row: i, count: rows[i] - target }; }
+      } else {
+        var ones = 0, bigIndex = -1, bigVal = 0;
+        for (var i = 0; i < rows.length; i++) { if (rows[i] === 1) ones++; if (rows[i] > 1) { bigIndex = i; bigVal = rows[i]; } }
+        if (bigIndex === -1) { for (var i = 0; i < rows.length; i++) { if (rows[i] === 1) return { row: i, count: 1 }; } }
+        else { if (ones % 2 === 1) return { row: bigIndex, count: bigVal }; else return { row: bigIndex, count: bigVal - 1 }; }
+      }
+      for (var i = 0; i < rows.length; i++) { if (rows[i] > 0) return { row: i, count: 1 }; }
+    }
+
+    function getRandomStupidMove(rows) {
+      var nonEmpty = []; for (var i = 0; i < rows.length; i++) { if (rows[i] > 0) nonEmpty.push(i); }
+      var r = nonEmpty[Math.floor(Math.random() * nonEmpty.length)]; var maxTake = rows[r];
+      var take = 1 + Math.floor(Math.random() * maxTake); return { row: r, count: take };
+    }
+
+    // =====================================================
+    // 胜负判定
+    // =====================================================
+    function endGame(playerWins) {
+      state.gameOver = true; disablePearls(); setTurnIndicator(''); showAISpeech('');
+      document.getElementById('bg2').currentTime = 0; document.getElementById('bg2').play();
+      var overlay = document.getElementById('overlay'); var title = document.getElementById('overlay-title'); var sub = document.getElementById('overlay-sub');
+      if (!playerWins) {
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)'; title.textContent = '你输了'; title.style.color = '#ff4422'; title.style.textShadow = '0 0 30px #ff2200';
+        sub.textContent = '最后一颗珍珠在你指尖碎裂……\n你将坠入无尽的深渊……';
+        new Audio('bg8.mp3').play();
+        gsap.to(document.body, { duration: 0.1, x: -8, yoyo: true, repeat: 5, onComplete: function() { gsap.set(document.body, { x: 0, y: 0 }); } });
+        explodeLastPearl('#ff4422', '#ff8800');
+      } else {
+        title.textContent = '你赢了'; title.style.color = '#ffdd44'; title.style.textShadow = '0 0 30px #ffaa00, 0 0 60px #ff6600';
+        sub.textContent = '深渊之眼悄然隐没……\n唯有你，站在光明之中……';
+        var gameArea = document.getElementById('game-area'); gsap.to(gameArea, { opacity: 0, duration: 1.5, ease: 'power2.inOut' });
+        new Audio('bg7.mp3').play();
+        gsap.to(document.body, { duration: 0.15, scale: 1.02, yoyo: true, repeat: 4, ease: 'sine.inOut' }); goldenGlow();
+      }
+      overlay.classList.add('show');
+    }
+
+    function explodeLastPearl(color, color2) {
+      var board = document.getElementById('pearl-board'); var rect = board.getBoundingClientRect(); var cx = rect.left + rect.width / 2; var cy = rect.top + rect.height / 2;
+      for (var i = 0; i < 50; i++) {
+        var p = document.createElement('div'); p.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;background:' + (i % 2 === 0 ? color : color2) + ';box-shadow:0 0 8px ' + color + ';pointer-events:none;z-index:200;left:' + cx + 'px;top:' + cy + 'px;';
+        document.body.appendChild(p); gsap.to(p, { x: (Math.random() - 0.5) * 500, y: (Math.random() - 0.5) * 500, opacity: 0, scale: 0, duration: 0.8 + Math.random() * 0.7, ease: 'power2.out', onComplete: function() { p.remove(); } });
+      }
+    }
+
+    function goldenGlow() {
+      var overlay = document.getElementById('overlay'); gsap.to(overlay, { backgroundColor: 'rgba(60,40, 0, 0.85)', duration: 0.5, yoyo: true, repeat: 3, onComplete: function() { overlay.style.backgroundColor = 'rgba(60, 40, 0, 0.85)'; } });
+    }
+  </script>
+</body>
+</html>
