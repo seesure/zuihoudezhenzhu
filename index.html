@@ -329,7 +329,7 @@
     function setTurnIndicator(text) { var el = document.getElementById('turn-indicator'); el.textContent = text; el.classList.remove('clickable'); el.onclick = null; }
     function makeTurnIndicatorClickable(onClick) {
       var el = document.getElementById('turn-indicator'); el.textContent = '轮到你了 ▸'; el.classList.add('clickable');
-      el.onclick = function() { if (Math.random() < 0.3) { var sfx = new Audio(['bg3.mp3','bg4.mp3','bg5.mp3'][Math.floor(Math.random() * 3)]); sfx.volume = 0.6; sfx.play(); } onClick(); };
+      el.onclick = function() { if (Math.random() < 0.2) { var sfx = new Audio(['bg3.mp3','bg4.mp3','bg5.mp3'][Math.floor(Math.random() * 3)]); sfx.volume = 0.6; sfx.play(); } onClick(); };
     }
 
     // =====================================================
